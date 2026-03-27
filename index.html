@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #f0f4f8;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --border-light: #f1f5f9;
+        --accent: #0d9488;
+        --accent-2: #0f766e;
+        --accent-light: rgba(13, 148, 136, 0.08);
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --text-light: #94a3b8;
+        --success: #059669;
+        --success-bg: #ecfdf5;
+        --error: #dc2626;
+        --error-bg: #fef2f2;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.04);
+        --radius: 14px;
+        --radius-sm: 8px;
+      }
+
+      html, body { min-height: 100%; }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 48px 20px 80px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .page { max-width: 760px; margin: 0 auto; }
+
+      /* ── Header ── */
+      header {
+        margin-bottom: 32px;
+        animation: fadeUp 0.45s cubic-bezier(0.22, 0.68, 0, 1.2) both;
+      }
+
+      .header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        background: var(--accent-light);
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+      h1 {
+        font-size: clamp(28px, 5vw, 38px);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 6px;
+      }
+
+      .header-sub { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+
+      /* ── Card ── */
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        animation: fadeUp 0.45s cubic-bezier(0.22, 0.68, 0, 1.2) 0.07s both;
+      }
+
+      .card-body { padding: 24px; }
+
+      /* ── Drop zone ── */
+      .drop-zone {
+        position: relative;
+        border: 2px dashed var(--border);
+        border-radius: var(--radius-sm);
+        padding: 44px 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease;
+        background: var(--border-light);
+      }
+
+      .drop-zone:hover, .drop-zone.drag-over {
+        border-color: var(--accent);
+        background: var(--accent-light);
+      }
+
+      .drop-zone.has-file {
+        border-color: var(--accent);
+        border-style: solid;
+        background: var(--accent-light);
+      }
+
+      #fileInput {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+
+      .dz-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        color: var(--accent);
+      }
+
+      .drop-zone:hover .dz-icon-wrap, .drop-zone.drag-over .dz-icon-wrap {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(13, 148, 136, 0.18);
+      }
+
+      .dz-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+      .dz-sub { font-size: 13px; color: var(--text-muted); }
+      .dz-sub .link {
+        color: var(--accent);
+        font-weight: 500;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(13, 148, 136, 0.3);
+        transition: border-color 0.15s;
+      }
+      .dz-sub .link:hover { border-color: var(--accent); }
+
+      /* ── File info ── */
+      .file-info {
+        display: none;
+        margin-top: 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+      }
+
+      .file-info.visible { display: block; animation: fadeUp 0.2s ease both; }
+
+      .file-info-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: var(--border-light);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .file-icon {
+        width: 32px; height: 32px;
+        border-radius: 6px;
+        background: var(--accent-light);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        color: var(--accent);
+      }
+
+      .file-name {
+        font-size: 13px; font-weight: 600; color: var(--text);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+
+      .file-size { font-size: 12px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+
+      .file-meta-grid { display: grid; grid-template-columns: 1fr 1fr; padding: 4px 0; }
+
+      .fi-item { padding: 8px 16px; display: flex; gap: 8px; align-items: baseline; }
+
+      .fi-label {
+        font-size: 11px; font-weight: 500; color: var(--text-light);
+        text-transform: uppercase; letter-spacing: 0.06em;
+        flex-shrink: 0; width: 56px;
+      }
+
+      .fi-value { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      /* ── Progress ── */
+      .progress-wrap {
+        display: none;
+        height: 3px;
+        background: var(--border);
+        border-radius: 100px;
+        margin-top: 16px;
+        overflow: hidden;
+      }
+
+      .progress-wrap.visible { display: block; }
+
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #06b6d4);
+        width: 40%;
+        border-radius: 100px;
+        animation: sweep 1s ease-in-out infinite;
+      }
+
+      @keyframes sweep {
+        0% { transform: translateX(-200%); }
+        100% { transform: translateX(400%); }
+      }
+
+      /* ── Actions ── */
+      .actions { display: none; gap: 10px; margin-top: 16px; }
+      .actions.visible { display: flex; animation: fadeUp 0.2s ease both; }
+
+      .btn {
+        flex: 1;
+        padding: 12px 20px;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        letter-spacing: -0.01em;
+      }
+
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+      .btn-primary { background: var(--accent); color: #fff; }
+      .btn-primary:not(:disabled):hover {
+        background: var(--accent-2);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+      }
+
+      .btn-ghost { background: var(--border-light); color: var(--text-muted); border: 1px solid var(--border); }
+      .btn-ghost:not(:disabled):hover { background: var(--border); color: var(--text); }
+
+      /* ── Status ── */
+      .status {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 11px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .status.visible { display: flex; animation: fadeUp 0.2s ease both; }
+      .status.success { background: var(--success-bg); color: var(--success); }
+      .status.error { background: var(--error-bg); color: var(--error); animation: shake 0.3s ease both; }
+      .status svg { flex-shrink: 0; }
+
+      /* ── Footer ── */
+      .footer-note {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--text-light);
+        padding-left: 4px;
+        animation: fadeUp 0.45s ease 0.14s both;
+      }
+
+      /* ── Results ── */
+      .results { display: none; margin-top: 32px; }
+      .results.visible { display: block; animation: fadeUp 0.4s ease both; }
+
+      .results-card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .results-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+
+      .results-meta {
+        font-size: 12px; font-weight: 600;
+        color: var(--accent);
+        background: var(--accent-light);
+        padding: 3px 10px;
+        border-radius: 100px;
+      }
+
+      /* ── Table ── */
+      .table-wrap { overflow-x: auto; }
+
+      .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+      .results-table thead tr { background: var(--border-light); border-bottom: 1px solid var(--border); }
+
+      .results-table th {
+        padding: 10px 16px;
+        text-align: left;
+        font-size: 11px; font-weight: 600;
+        letter-spacing: 0.05em; text-transform: uppercase;
+        color: var(--text-muted);
+        white-space: nowrap;
+        border-right: 1px solid var(--border);
+      }
+
+      .results-table th:last-child { border-right: none; }
+      .results-table th:not(:first-child) { text-align: right; }
+
+      .results-table tbody tr {
+        border-bottom: 1px solid var(--border-light);
+        transition: background 0.12s ease;
+        opacity: 0;
+        animation: fadeIn 0.25s ease forwards;
+      }
+
+      .results-table tbody tr:last-child { border-bottom: none; }
+      .results-table tbody tr:nth-child(even) { background: #fafbfc; }
+      .results-table tbody tr:hover { background: var(--accent-light); }
+
+      .results-table td { padding: 12px 16px; border-right: 1px solid var(--border-light); color: var(--text); }
+      .results-table td:last-child { border-right: none; }
+      .results-table td:not(:first-child) { text-align: right; font-weight: 600; color: var(--accent-2); font-size: 12px; }
+
+      /* ── Draggable headers ── */
+      .results-table th[draggable="true"] { cursor: grab; user-select: none; }
+      .results-table th[draggable="true"]:active { cursor: grabbing; }
+      .results-table th.dragging { opacity: 0.3; }
+      .results-table th.drag-over { background: var(--accent-light); border-left: 2px solid var(--accent); }
+
+      /* ── Editable label ── */
+      .col-name {
+        display: inline-flex; align-items: center; gap: 5px;
+        cursor: text; padding: 2px 4px; border-radius: 4px;
+        transition: background 0.15s ease;
+      }
+
+      .col-name:hover { background: var(--border-light); }
+      .col-name .edit-icon { opacity: 0; transition: opacity 0.15s ease; color: var(--text-light); flex-shrink: 0; }
+      .col-name:hover .edit-icon { opacity: 1; }
+
+      .col-name-input {
+        background: var(--border-light);
+        border: 1.5px solid var(--accent);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 13px; font-weight: 500;
+        outline: none; padding: 2px 6px; min-width: 80px;
+      }
+
+      /* ── Animations ── */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div class="header-top">
+          <span class="badge"><span class="badge-dot"></span>Analytics</span>
+        </div>
+        <h1>Análise de Dados</h1>
+        <p class="header-sub">Carregue um arquivo CSV para visualizar as estatísticas de resposta.</p>
+      </header>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept=".csv,text/csv" />
+            <div class="dz-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="dz-title">Arraste o arquivo CSV aqui</p>
+            <p class="dz-sub">ou <span class="link">selecione o arquivo</span></p>
+          </div>
+
+          <div class="file-info" id="fileInfo">
+            <div class="file-info-header">
+              <div class="file-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="8" y1="13" x2="16" y2="13"/>
+                  <line x1="8" y1="17" x2="16" y2="17"/>
+                </svg>
+              </div>
+              <span class="file-name" id="infoName">—</span>
+              <span class="file-size" id="infoSize">—</span>
+            </div>
+            <div class="file-meta-grid">
+              <div class="fi-item">
+                <span class="fi-label">Tipo</span>
+                <span class="fi-value" id="infoType">—</span>
+              </div>
+              <div class="fi-item">
+                <span class="fi-label">Alterado</span>
+                <span class="fi-value" id="infoModified">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-bar"></div>
+          </div>
+
+          <div class="actions" id="actions">
+            <button class="btn btn-ghost" id="clearBtn">Limpar</button>
+            <button class="btn btn-primary" id="processBtn">Processar arquivo →</button>
+          </div>
+
+          <div class="status" id="statusEl" role="alert" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <p class="footer-note">Aceito: .CSV &nbsp;·&nbsp; Máximo: 50 MB</p>
+
+      <section class="results" id="results">
+        <div class="results-card">
+          <div class="results-header">
+            <span class="results-title">Resultados</span>
+            <span class="results-meta" id="resultsMeta"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr id="resultsHeadRow"><th>Pergunta</th></tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const dropZone    = document.getElementById("dropZone");
+      const fileInput   = document.getElementById("fileInput");
+      const fileInfo    = document.getElementById("fileInfo");
+      const actions     = document.getElementById("actions");
+      const processBtn  = document.getElementById("processBtn");
+      const clearBtn    = document.getElementById("clearBtn");
+      const progressWrap = document.getElementById("progressWrap");
+      const statusEl    = document.getElementById("statusEl");
+      const resultsEl   = document.getElementById("results");
+      const resultsBody = document.getElementById("resultsBody");
+      const resultsMeta = document.getElementById("resultsMeta");
+
+      const MAX_SIZE     = 50 * 1024 * 1024;
+      const DROP_COLS    = ["Finalizador", "Status"];
+      const GRADE_MAP    = { pessimo: 1, ruim: 2, regular: 3, bom: 4, otimo: 5 };
+
+      let selectedFile = null;
+
+      // ── Drag & Drop ───────────────────────────────────────────
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+
+      dropZone.addEventListener("dragleave", (e) => {
+        if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove("drag-over");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        const file = e.dataTransfer?.files[0];
+        if (file) handleFile(file);
+      });
+
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+      });
+
+      // ── File Handling ─────────────────────────────────────────
+      function handleFile(file) {
+        const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+        if (!isCSV) {
+          showStatus("error", `Tipo inválido: "${file.name}" — apenas arquivos .CSV são aceites.`);
+          fileInput.value = "";
+          return;
+        }
+        if (file.size > MAX_SIZE) {
+          showStatus("error", `Arquivo excede o limite máximo: ${formatBytes(file.size)} — limite de 50 MB.`);
+          fileInput.value = "";
+          return;
+        }
+
+        selectedFile = file;
+        clearStatus();
+
+        document.getElementById("infoName").textContent     = file.name;
+        document.getElementById("infoSize").textContent     = formatBytes(file.size);
+        document.getElementById("infoType").textContent     = "text/csv";
+        document.getElementById("infoModified").textContent = new Date(file.lastModified).toLocaleString("pt");
+
+        dropZone.classList.add("has-file");
+        fileInfo.classList.add("visible");
+        actions.classList.add("visible");
+      }
+
+      // ── Process ───────────────────────────────────────────────
+      processBtn.addEventListener("click", () => {
+        if (!selectedFile) return;
+        setLoading(true);
+
+        Papa.parse(selectedFile, {
+          delimiter: ";",
+          encoding: "ISO-8859-1",   // latin-1
+          header: false,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete(results) {
+            try {
+              const processed = processCSV(results.data);
+              showStatus("success", `"${selectedFile.name}" processado com sucesso.`);
+              renderResults(processed.data, processed.count);
+              resetDropZone();
+            } catch (e) {
+              showStatus("error", "Não foi possível processar o CSV. Verifique o formato e tente novamente.");
+            } finally {
+              setLoading(false);
+            }
+          },
+          error() {
+            showStatus("error", "Erro ao ler o arquivo.");
+            setLoading(false);
+          },
+        });
+      });
+
+      // ── CSV Processing (mirrors Python backend logic) ─────────
+      function processCSV(rows) {
+        // pandas read_csv skiprows=1: skip row[0], use row[1] as header
+        const headers = rows[1];
+        const data    = rows.slice(2);
+
+        const result = {};
+
+        headers.forEach((colName, colIdx) => {
+          if (!String(colName).startsWith("Perg")) return;
+          if (DROP_COLS.includes(colName)) return;
+
+          const values = data
+            .map(row => row[colIdx])
+            .filter(v => v !== null && v !== "" && typeof v === "number" && !isNaN(v));
+
+          if (values.length === 0) return;
+
+          const mean = values.reduce((a, b) => a + b, 0) / values.length;
+
+          const counts = { pessimo: 0, ruim: 0, regular: 0, bom: 0, otimo: 0 };
+          values.forEach(v => {
+            for (const [grade, gradeVal] of Object.entries(GRADE_MAP)) {
+              if (v === gradeVal) { counts[grade]++; break; }
+            }
+          });
+
+          const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+          const pcts  = {};
+          for (const [k, v] of Object.entries(counts)) {
+            pcts[`${k}_pct`] = Math.round(v / total * 1000) / 10;
+          }
+
+          result[colName] = { mean, ...counts, ...pcts };
+        });
+
+        return { count: data.length, data: result };
+      }
+
+      // ── Clear ─────────────────────────────────────────────────
+      clearBtn.addEventListener("click", () => {
+        resetDropZone();
+        clearStatus();
+        clearResults();
+      });
+
+      // ── Helpers ───────────────────────────────────────────────
+      function setLoading(on) {
+        processBtn.disabled = on;
+        clearBtn.disabled   = on;
+        progressWrap.classList.toggle("visible", on);
+      }
+
+      function resetDropZone() {
+        selectedFile = null;
+        fileInput.value = "";
+        dropZone.classList.remove("has-file", "drag-over");
+        fileInfo.classList.remove("visible");
+        actions.classList.remove("visible");
+        progressWrap.classList.remove("visible");
+      }
+
+      function showStatus(type, message) {
+        const svgSuccess = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const svgError   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+        statusEl.className = `status visible ${type}`;
+        statusEl.innerHTML = type === "success" ? svgSuccess : svgError;
+        statusEl.appendChild(document.createTextNode(message));
+      }
+
+      function clearStatus() {
+        statusEl.className  = "status";
+        statusEl.textContent = "";
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024)      return `${bytes} B`;
+        if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+      }
+
+      // ── Column name persistence ───────────────────────────────
+      const STORAGE_KEY = "csv_column_names";
+
+      function getSavedNames() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+        catch { return {}; }
+      }
+
+      function saveColumnName(originalKey, newName) {
+        const names = getSavedNames();
+        if (newName && newName.trim() && newName.trim() !== originalKey) {
+          names[originalKey] = newName.trim();
+        } else {
+          delete names[originalKey];
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(names));
+      }
+
+      function getColumnName(key) {
+        return getSavedNames()[key] || key;
+      }
+
+      // ── Column definitions & order ────────────────────────────
+      const COLUMNS = [
+        { key: "mean",    label: "Média",   fmt: v => v.toFixed(4) },
+        { key: "pessimo", label: "Péssimo", fmt: (v, row) => `${v} (${row.pessimo_pct}%)` },
+        { key: "ruim",    label: "Ruim",    fmt: (v, row) => `${v} (${row.ruim_pct}%)` },
+        { key: "regular", label: "Regular", fmt: (v, row) => `${v} (${row.regular_pct}%)` },
+        { key: "bom",     label: "Bom",     fmt: (v, row) => `${v} (${row.bom_pct}%)` },
+        { key: "otimo",   label: "Ótimo",   fmt: (v, row) => `${v} (${row.otimo_pct}%)` },
+      ];
+
+      const COL_ORDER_KEY = "csv_column_order";
+      let colOrder   = loadColOrder();
+      let lastData   = null;
+      let dragSrcIdx = null;
+
+      function loadColOrder() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(COL_ORDER_KEY));
+          const keys  = COLUMNS.map(c => c.key);
+          if (Array.isArray(saved) && saved.length === keys.length && keys.every(k => saved.includes(k)))
+            return saved;
+        } catch {}
+        return COLUMNS.map(c => c.key);
+      }
+
+      function saveColOrder() {
+        localStorage.setItem(COL_ORDER_KEY, JSON.stringify(colOrder));
+      }
+
+      function orderedCols() {
+        return colOrder.map(k => COLUMNS.find(c => c.key === k));
+      }
+
+      // ── Results ───────────────────────────────────────────────
+      function renderResults(data, count) {
+        lastData = data;
+        resultsMeta.textContent = count != null ? `${count} resposta${count !== 1 ? "s" : ""}` : "";
+        buildTable();
+        resultsEl.classList.add("visible");
+      }
+
+      function buildTable() { buildHeader(); buildRows(); }
+
+      function buildHeader() {
+        const headRow = document.getElementById("resultsHeadRow");
+        while (headRow.children.length > 1) headRow.removeChild(headRow.lastChild);
+
+        orderedCols().forEach((col, i) => {
+          const th = document.createElement("th");
+          th.textContent = col.label;
+          th.draggable = true;
+
+          th.addEventListener("dragstart", (e) => {
+            dragSrcIdx = i;
+            e.dataTransfer.effectAllowed = "move";
+            requestAnimationFrame(() => th.classList.add("dragging"));
+          });
+          th.addEventListener("dragend", () => {
+            th.classList.remove("dragging");
+            document.querySelectorAll(".drag-over").forEach(el => el.classList.remove("drag-over"));
+          });
+          th.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            th.classList.add("drag-over");
+          });
+          th.addEventListener("dragleave", () => th.classList.remove("drag-over"));
+          th.addEventListener("drop", (e) => {
+            e.preventDefault();
+            th.classList.remove("drag-over");
+            if (dragSrcIdx === null || dragSrcIdx === i) return;
+            const next = [...colOrder];
+            const [moved] = next.splice(dragSrcIdx, 1);
+            next.splice(i, 0, moved);
+            colOrder = next;
+            saveColOrder();
+            buildTable();
+          });
+
+          headRow.appendChild(th);
+        });
+      }
+
+      function buildRows() {
+        if (!lastData) return;
+        resultsBody.innerHTML = "";
+        Object.keys(lastData).forEach((key, i) => {
+          const row = lastData[key];
+          const tr  = document.createElement("tr");
+          tr.style.animationDelay = `${i * 50}ms`;
+
+          const td0 = document.createElement("td");
+          td0.appendChild(makeEditableLabel(key, getColumnName(key)));
+          tr.appendChild(td0);
+
+          orderedCols().forEach(col => {
+            const td = document.createElement("td");
+            td.textContent = col.fmt(row[col.key], row);
+            tr.appendChild(td);
+          });
+
+          resultsBody.appendChild(tr);
+        });
+      }
+
+      function makeEditableLabel(originalKey, displayName) {
+        const wrap = document.createElement("span");
+        wrap.className = "col-name";
+        wrap.title = "Clique para renomear";
+
+        const text = document.createElement("span");
+        text.textContent = displayName;
+
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        icon.setAttribute("class", "edit-icon");
+        icon.setAttribute("width", "10");
+        icon.setAttribute("height", "10");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("fill", "none");
+        icon.setAttribute("stroke", "currentColor");
+        icon.setAttribute("stroke-width", "2");
+        icon.setAttribute("stroke-linecap", "round");
+        icon.innerHTML = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
+
+        wrap.appendChild(text);
+        wrap.appendChild(icon);
+        wrap.addEventListener("click", () => startEditing(wrap, originalKey, text));
+        return wrap;
+      }
+
+      function startEditing(wrap, originalKey, textSpan) {
+        const current = textSpan.textContent;
+        const input   = document.createElement("input");
+        input.className = "col-name-input";
+        input.value     = current;
+        input.style.width = `${Math.max(current.length * 8, 80)}px`;
+
+        wrap.replaceWith(input);
+        input.focus();
+        input.select();
+
+        function commit() {
+          const newName = input.value.trim() || originalKey;
+          saveColumnName(originalKey, newName);
+          textSpan.textContent = newName;
+          wrap.querySelector("span").textContent = newName;
+          input.replaceWith(wrap);
+        }
+
+        input.addEventListener("blur", commit);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter")  { e.preventDefault(); input.blur(); }
+          if (e.key === "Escape") { input.value = current; input.blur(); }
+        });
+      }
+
+      function clearResults() {
+        lastData = null;
+        resultsEl.classList.remove("visible");
+        resultsBody.innerHTML  = "";
+        resultsMeta.textContent = "";
+      }
+    </script>
+  </body>
+</html>
